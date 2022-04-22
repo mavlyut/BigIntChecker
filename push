@@ -2,7 +2,7 @@ git add -A
 cnt=`cat num.txt`
 git commit -m $cnt
 git push
-rm vector.h
-echo > vector.h
+rm big_integer.cpp
+echo > big_integer.cpp
 let cnt+=1
 echo $cnt > "num.txt"
