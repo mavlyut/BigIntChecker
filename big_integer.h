@@ -5,14 +5,14 @@
 #include <vector>
 
 struct big_integer {
-private:
-  std::vector<uint32_t> _data;
-  bool sgn;
+  size_t length() const;
+  bool sgn() const;
+  uint32_t get(size_t ind) const;
 
-public:
   big_integer();
   big_integer(big_integer const& other);
   big_integer(int a);
+  big_integer(std::vector<uint32_t> data, bool sgn);
   explicit big_integer(std::string const& str);
   ~big_integer();
 
@@ -49,6 +49,15 @@ public:
   friend bool operator>=(big_integer const& a, big_integer const& b);
 
   friend std::string to_string(big_integer const& a);
+
+private:
+  std::vector<uint32_t> _data;
+  bool _sgn;
+
+  bool is_zero() const;
+  big_integer abs() const;
+  char last_digit() const;
+
 };
 
 big_integer operator+(big_integer a, big_integer const& b);
