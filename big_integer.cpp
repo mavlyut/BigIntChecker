@@ -15,6 +15,8 @@ big_integer::big_integer(std::string const& str) {}
 big_integer::~big_integer() = default;
 
 big_integer& big_integer::operator=(big_integer const& other) {
+  this->_data = move(other._data);
+  this->sgn = other.sgn;
   return *this;
 }
 
@@ -67,47 +69,51 @@ big_integer big_integer::operator-() const {
 }
 
 big_integer big_integer::operator~() const {
-  return *this;
+  return -(*this) - 1;
 }
 
 big_integer& big_integer::operator++() {
-  return *this;
+  return operator+=(1);
 }
 
 big_integer big_integer::operator++(int) {
-  return *this;
+  big_integer res(*this);
+  operator++();
+  return res;
 }
 
 big_integer& big_integer::operator--() {
-  return *this;
+  return operator-=(1);
 }
 
 big_integer big_integer::operator--(int) {
-  return *this;
+  big_integer res(*this);
+  operator--();
+  return res;
 }
 
 big_integer operator+(big_integer a, big_integer const& b) {
-  return a;
+  return a += b;
 }
 
 big_integer operator-(big_integer a, big_integer const& b) {
-  return a;
+  return a -= b;
 }
 
 big_integer operator*(big_integer a, big_integer const& b) {
-  return a;
+  return a *= b;
 }
 
 big_integer operator/(big_integer a, big_integer const& b) {
-  return a;
+  return a /= b;
 }
 
 big_integer operator%(big_integer a, big_integer const& b) {
-  return a;
+  return a %= b;
 }
 
 big_integer operator&(big_integer a, big_integer const& b) {
-  return a;
+  return a &= b;
 }
 
 big_integer operator|(big_integer a, big_integer const& b) {
@@ -115,7 +121,7 @@ big_integer operator|(big_integer a, big_integer const& b) {
 }
 
 big_integer operator^(big_integer a, big_integer const& b) {
-  return a;
+  return a ^= b;
 }
 
 big_integer operator<<(big_integer a, int b) {
@@ -123,31 +129,41 @@ big_integer operator<<(big_integer a, int b) {
 }
 
 big_integer operator>>(big_integer a, int b) {
-  return a;
+  return a >>= b;
 }
 
 bool operator==(big_integer const& a, big_integer const& b) {
-  return true;
+  return a.sgn == b.sgn && a._data == b._data;
 }
 
 bool operator!=(big_integer const& a, big_integer const& b) {
-  return true;
+  return a.sgn != b.sgn || a._data != b._data;
 }
 
 bool operator<(big_integer const& a, big_integer const& b) {
-  return true;
+  if (a.sgn != b.sgn) return a.sgn < b.sgn;
+  if (a._data.size() != b._data.size()) return a._data.size() < b._data.size();
+  for (ptrdiff_t i = a._data.size() - 1; i >= 0; i--) {
+    if (a._data[i] != b._data[i]) return a._data[i] < b._data[i];
+  }
+  return false;
 }
 
 bool operator>(big_integer const& a, big_integer const& b) {
-  return true;
+  if (a.sgn != b.sgn) return a.sgn > b.sgn;
+  if (a._data.size() != b._data.size()) return a._data.size() > b._data.size();
+  for (ptrdiff_t i = a._data.size() - 1; i >= 0; i--) {
+    if (a._data[i] != b._data[i]) return a._data[i] > b._data[i];
+  }
+  return false;
 }
 
 bool operator<=(big_integer const& a, big_integer const& b) {
-  return true;
+  return a < b || a == b;
 }
 
 bool operator>=(big_integer const& a, big_integer const& b) {
-  return true;
+  return a > b || a == b;
 }
 
 std::string to_string(big_integer const& a) {
