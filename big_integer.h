@@ -2,8 +2,14 @@
 
 #include <iosfwd>
 #include <string>
+#include <vector>
 
 struct big_integer {
+private:
+  std::vector<uint32_t> _data;
+  bool sgn;
+
+public:
   big_integer();
   big_integer(big_integer const& other);
   big_integer(int a);
