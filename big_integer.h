@@ -1,3 +1,6 @@
+#ifndef big_integer_big_integer_H
+#define big_integer_big_integer_H
+
 #include <vector>
 #include <string>
 #include <iostream>
@@ -113,3 +116,5 @@ public:
 };
 
 std::string to_string(big_integer const& b);
+
+#endif //big_integer_big_integer_H
