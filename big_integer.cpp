@@ -319,7 +319,7 @@ std::string to_string(big_integer const& a) {
   big_integer b = a, c;
   if (b._sgn) b = -b;
   while (b != 0) {
-    c = b / 10 * 10;
+    c = (b / 10) * 10;
     res.push_back('0' + (b - c)._data[0]);
     b.div(10);
   }
