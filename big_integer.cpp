@@ -67,7 +67,7 @@ big_integer& big_integer::operator=(big_integer const& other) = default;
 
 big_integer& big_integer::operator+=(big_integer const& rhs) {
   reserve(std::max<size_t>(rhs.length(), length()) + 1);
-  uint32_t carry = 0;
+  uint64_t carry = 0;
   for (size_t i = 0; i < length(); i++) {
     uint64_t res = _data[i] + carry + rhs[i];
     carry = res >> 32u;
@@ -79,7 +79,7 @@ big_integer& big_integer::operator+=(big_integer const& rhs) {
 }
 
 big_integer& big_integer::operator-=(big_integer const& rhs) {
-  return *this += (-rhs);
+  return *this += -rhs;
 }
 
 big_integer& big_integer::operator*=(big_integer const& rhs) {
@@ -310,18 +310,17 @@ bool operator<=(big_integer const& a, big_integer const& b) {
 }
 
 bool operator>=(big_integer const& a, big_integer const& b) {
-  return a > b || a == b;
+  return b <= a;
 }
 
 std::string to_string(big_integer const& a) {
   if (a == 0) return "0";
   std::string res;
-  big_integer b = a, c;
+  big_integer b = a;
   if (b._sgn) b = -b;
   while (b != 0) {
-    c = b / 10 * 10;
-    res.push_back('0' + (b - c)._data[0]);
-    b /= 10;
+    res.push_back(b._data[0] % 10 + '0');
+    b.div(10);
   }
   if (a._sgn) res.push_back('-');
   std::reverse(res.begin(), res.end());
@@ -413,5 +412,4 @@ big_integer& big_integer::div(uint32_t b) {
   shrink_to_fit();
   return *this;
 }
-
 
