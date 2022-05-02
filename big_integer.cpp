@@ -313,11 +313,11 @@ bool operator>(big_integer const& a, big_integer const& b) {
 }
 
 bool operator<=(big_integer const& a, big_integer const& b) {
-  return !(a > b);
+  return a < b || a == b;
 }
 
 bool operator>=(big_integer const& a, big_integer const& b) {
-  return !(a < b);
+  return a > b || a == b;
 }
 
 std::string to_string(big_integer const& a) {
