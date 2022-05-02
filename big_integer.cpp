@@ -40,7 +40,10 @@ void big_integer::feel(uint64_t a) {
 big_integer::big_integer(std::vector<uint32_t> data, bool sgn) : _data(std::move(data)), _sgn(sgn) {}
 
 big_integer::big_integer(std::string const& str) : big_integer() {
+  if (str.length() == 0) throw std::invalid_argument("can't parse empty string");
+  if (str[0] == '-' && str.length() == 1) throw std::invalid_argument("can't parse string");
   for (size_t i = (str[0] == '-' ? 1 : 0); i < str.length(); i++) {
+    if ('0' > str[i] || str[i] > '9') throw std::invalid_argument("can't parse string");
     *this *= 10;
     *this += (str[i] - '0');
   }
