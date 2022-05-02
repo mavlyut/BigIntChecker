@@ -191,11 +191,10 @@ big_integer& big_integer::operator^=(big_integer const& rhs) {
 big_integer& big_integer::operator<<=(int rhs) {
   if (rhs < 0) return (*this >>= -rhs);
   *this *= (1u << (rhs % 32));
-  std::vector<uint32_t> tmp_data = _data;
-  reverse(tmp_data.begin(), tmp_data.end());
-  for (size_t i = 0; i < rhs / 32; i++) tmp_data.push_back(0u);
-  reverse(tmp_data.begin(), tmp_data.end());
-  if (tmp_data.empty()) *this = 0;
+  reverse(_data.begin(), _data.end());
+  for (size_t i = 0; i < rhs / 32; i++) _data.push_back(0u);
+  reverse(_data.begin(), _data.end());
+  if (_data.empty()) *this = 0;
   shrink_to_fit();
   return *this;
 }
@@ -208,6 +207,7 @@ big_integer& big_integer::operator>>=(int rhs) {
   for (uint32_t cnt = rhs / 32; cnt > 0 && !tmp._data.empty(); cnt--) tmp._data.pop_back();
   reverse(tmp._data.begin(), tmp._data.end());
   *this = _sgn ? -(++tmp) : tmp;
+  if (_data.empty()) *this = 0;
   shrink_to_fit();
   return *this;
 }
@@ -349,7 +349,6 @@ void big_integer::reserve(size_t new_capacity) {
 
 void big_integer::shrink_to_fit() {
   while (length() > 1 && _data.back() == _default()) _data.pop_back();
-  if (length() == 0) _data.push_back(_default());
 }
 
 uint32_t big_integer::trial(const big_integer &a, const big_integer &b, size_t i, size_t j) {
