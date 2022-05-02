@@ -176,16 +176,38 @@ const std::function<uint32_t(uint32_t, uint32_t)>& _and = [](uint32_t x, uint32_
 const std::function<uint32_t(uint32_t, uint32_t)>& _or = [](uint32_t x, uint32_t y) -> uint32_t {return x | y;};
 const std::function<uint32_t(uint32_t, uint32_t)>& _xor = [](uint32_t x, uint32_t y) -> uint32_t {return x ^ y;};
 
-big_integer& big_integer::operator&=(big_integer const& rhs) {
-  return make_bool_op(_and, rhs);
+big_integer& big_integer::operator&=(big_integer const& rhs)
+{
+  _sgn &= rhs._sgn;
+  size_t l = std::max(rhs.length(), length());
+  reserve(l);
+  for (size_t i = 0; i < l; i++) {
+    _data[i] &= (i < rhs.length()) ? rhs._data[i] : _default();
+  }
+  shrink_to_fit();
+  return *this;
 }
 
-big_integer& big_integer::operator|=(big_integer const& rhs) {
-  return make_bool_op(_or, rhs);
+big_integer& big_integer::operator|=(big_integer const& rhs)
+{
+  _sgn |= rhs._sgn;
+  size_t l = std::max(rhs.length(), length());
+  reserve(l);
+  for (size_t i = 0; i < l; i++) {
+    _data[i] |= (i < rhs.length()) ? rhs._data[i] : _default();
+  }
+  return *this;
 }
 
-big_integer& big_integer::operator^=(big_integer const& rhs) {
-  return make_bool_op(_xor, rhs);
+big_integer& big_integer::operator^=(big_integer const& rhs)
+{
+  _sgn ^= rhs._sgn;
+  size_t l = std::max(rhs.length(), length());
+  reserve(l);
+  for (size_t i = 0; i < l; i++) {
+    _data[i] ^= (i < rhs.length()) ? rhs._data[i] : _default();
+  }
+  return *this;
 }
 
 big_integer& big_integer::operator<<=(int rhs) {
