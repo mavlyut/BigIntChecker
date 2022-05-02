@@ -316,10 +316,11 @@ bool operator>=(big_integer const& a, big_integer const& b) {
 std::string to_string(big_integer const& a) {
   if (a == 0) return "0";
   std::string res;
-  big_integer b = a;
+  big_integer b = a, c;
   if (b._sgn) b = -b;
   while (b != 0) {
-    res.push_back(b._data[0] % 10 + '0');
+    c = b / 10 * 10;
+    res.push_back('0' + (b - c)._data[0]);
     b.div(10);
   }
   if (a._sgn) res.push_back('-');
