@@ -100,10 +100,7 @@ big_integer& big_integer::operator*=(big_integer const& rhs) {
   for (size_t i = 0; i < a.length(); i++) {
     uint64_t carry = 0;
     for (size_t j = 0; j < b.length() || carry; j++) {
-      uint64_t tmp = a._data[i];
-      tmp *= static_cast<uint64_t>(j < b.length() ? b._data[j] : 0u);
-      tmp += c._data[i + j];
-      tmp += carry;
+      uint64_t tmp = a._data[i] * static_cast<uint64_t>(j < b.length() ? b._data[j] : 0u) + c._data[i + j] + carry;
       c._data[i + j] = static_cast<uint32_t>(tmp);
       carry = tmp >> 32;
     }
