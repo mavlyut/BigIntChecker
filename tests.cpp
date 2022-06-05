@@ -551,6 +551,12 @@ TEST(correctness, mul_long_pow2) {
   EXPECT_EQ(c, b * b);
 }
 
+TEST(correctness, div_0_long) {
+  big_integer a;
+  big_integer b("100000000000000000000000000000000000000000000000000000000000");
+  EXPECT_EQ(a, a / b);
+}
+
 TEST(correctness, div_long) {
   big_integer a("10000000000000000000000000000000000000000000000000000000000000"
                 "000000000000000000000000000000");
