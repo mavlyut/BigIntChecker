@@ -1,650 +1,328 @@
 #include "big_integer.h"
-#include <algorithm>
-#include <array>
-#include <cstddef>
 #include <stdexcept>
+#include <algorithm>
 
-constexpr size_t UINT32_DIGITS_CAP = 9;
-constexpr std::array<uint32_t, UINT32_DIGITS_CAP + 1> DEC_POWERS = {1,      10,      100,      1000,      10000,
-                                                                100000, 1000000, 10000000, 100000000, 1000000000};
+typedef unsigned long long ull;
 
-constexpr size_t STRING_POW = 10;
+void big_integer::to_size(size_t NEEDED_LENGTH) {
+	while (data.size() > NEEDED_LENGTH && sign && data.back() == UINT32_MAX) data.pop_back();
+	while (data.size() > NEEDED_LENGTH && !sign && data.back() == 0) data.pop_back();
+	while (data.size() < NEEDED_LENGTH) data.push_back(this->value(data.size()));
+}
 
-// DEPEND ON INNER IMPLEMENTATION WITH <uint32_t> BLOCKS
-constexpr size_t BASE_POW = 32;
-constexpr uint64_t BASE = 1ULL << BASE_POW;
-constexpr uint32_t BASE_MAX_VALUE = BASE - 1;
+big_integer::big_integer() : sign(false) {}
 
-namespace
-{
-    bool is_negative(uint32_t value)
-    {
-        return (value >> (BASE_POW - 1)) & 1;
-    }
+big_integer::big_integer(uint_vector const& _data, bool const& _sign) : data(_data), sign(_sign) {
+    to_size();
+}
 
-    void sum_with_carry(uint64_t &flag, uint32_t& a, const uint32_t b)
-    {
-        flag = flag + a + b;
-        a = flag & BASE_MAX_VALUE;
-        flag >>= BASE_POW;
-    }
+big_integer::big_integer(int o) {
+	data.push_back(uint(o));
+	sign = (o < 0);
+    to_size();
+}
 
-    uint32_t string_to_int32(char const *ptr, size_t from, size_t size)
-    {
-        uint32_t num = 0;
-        for (size_t i = 0; i < size; i++)
-        {
-            char ch = ptr[from + i];
-            if (isdigit(ch))
-            {
-                num = num * STRING_POW + (ch - '0');
-            }
-            else
-            {
-                throw std::invalid_argument("not a number");
-            }
+size_t big_integer::len() const {
+	return this->data.size();
+}
+
+big_integer::big_integer(big_integer const& o) : data(o.data), sign(o.sign) {}
+
+big_integer::big_integer(std::string const& s) {
+    bool ok = true;
+    for (size_t i = 1; i < s.size(); i++) ok |= ('0' <= s[i] && s[i] <= '9');
+    ok |= (('0' <= s[0] && s[0] <= '9') || (s[0] == '-'));
+    if (!ok) throw std::runtime_error("Incorrect string format");
+    big_integer res;
+    for (char ch : s) {
+		if (ch == '-') {
+			continue;
+		} else {
+			res = res * 10 + (ch - '0');
+		}
+	}
+    if (s[0] == '-') {
+		res = -res;
+	}
+    sign = (s[0] == '-');
+	(*this) = res;
+    to_size();
+}
+
+uint big_integer::value(size_t id) const {
+	if (id < data.size()) {
+		return data[id];
+	}
+	if (sign) return UINT32_MAX; else return 0;
+}
+
+big_integer::~big_integer() {}
+
+big_integer& big_integer::operator=(big_integer const& o) {
+	big_integer res(o);
+	std::swap(res.sign, this->sign);
+	std::swap(res.data, this->data);
+	return (*this);
+}
+
+big_integer big_integer::abs() const {
+	return (sign) ? -(*this) : (*this);
+}
+
+big_integer big_integer::operator - () const {
+	if ((*this) == 0) return (*this);
+	return (~(*this)) + 1;
+}
+
+big_integer big_integer::operator + () const {
+	return (*this);
+}
+
+big_integer big_integer::operator ~ () const {
+    uint_vector res;
+	for (size_t i = 0; i < data.size(); i++) res.push_back(~data[i]);
+	return big_integer(res, !sign);
+}
+
+big_integer& big_integer::operator ++ () {
+	return (*this) += 1;
+}
+
+big_integer& big_integer::operator--() {
+	return (*this) -= 1;
+}
+
+big_integer operator + (big_integer const& a, big_integer const& b) {
+	uint carry = 0;
+    uint_vector res(std::max(a.len(), b.len()) + 1);//extra qword
+	for (size_t i = 0; i < res.size(); i++) {
+		ull cur = ull(a.value(i)) + b.value(i) + carry;
+		carry = cur >> 32;
+		res[i] = uint(cur); //default casting with %= 2^32
+	}
+	return big_integer(res, (res.back() & (1 << 31)));
+}
+
+big_integer operator - (big_integer const& a, big_integer const& b)  {
+	return (a + (-b));
+}
+
+big_integer operator * (big_integer const& a, big_integer const& b) {
+	if ((a.data.empty() && !a.sign) || (b.data.empty() && !b.sign)) return big_integer(0);
+	big_integer p = a.abs(), q = b.abs();
+	size_t sz = p.len() + q.len() + 1;
+    uint_vector res(sz);
+	for (size_t i = 0; i < p.len(); i++) {
+		uint carry = 0;
+		for (size_t j = 0; j < q.len() || carry; j++) {
+			size_t at = i + j;
+			ull cur = ull(p.value(i)) * q.value(j) + res[at] + carry;
+			res[at] = uint(cur); //default casting with %= 2^32
+			carry = cur >> 32;
+		}
+	}
+	big_integer ans = big_integer(res, 0);
+	if (a.sign ^ b.sign) ans = -ans;
+	return ans;
+}
+
+uint trial(uint a, uint b, uint c) {
+	ull res = a;
+	res <<= 32;
+	res += b;
+	res /= c;
+	res = std::min(res, ull(UINT32_MAX));
+	return uint(res);
+}
+
+big_integer operator / (big_integer const& a, big_integer const& b) {
+	big_integer p = a.abs(), q = b.abs();
+    if (q == 0) throw std::runtime_error("Division by zero");
+	if (p.len() < q.len()) return 0;
+	uint f = (ull(UINT32_MAX) + 1) / (ull(q.data.back()) + 1);
+	big_integer bf = f;
+	bf = bf.abs();
+	p *= bf;
+	q *= bf;
+	size_t n = p.len(), m = q.len();
+	size_t sz = n - m + 1;
+    uint_vector res(sz);
+	uint divisor = q.data.back();
+    uint_vector divident_pref(m + 1);
+	for (size_t i = 0; i <= m; i++) divident_pref[i] = p.value(n - m + i);
+	for (size_t i = 0; i < sz; i++) {
+		divident_pref[0] = p.value(n - m - i);
+		//raw data multiplication
+        big_integer cur = trial(divident_pref[m], divident_pref[m - 1], divisor);
+		cur.sign = false;
+        cur.to_size(1);
+        big_integer divideable = q * cur;
+        divideable.to_size(m + 1);
+        big_integer divident = big_integer(divident_pref, 0);
+        divident.to_size(m + 1);
+
+		while (cur > 0 && divident < divideable) {
+            --cur;
+            cur.to_size(1);
+			cur.sign = false;
+            divideable = q * cur;
+            divideable.to_size(m + 1);
         }
 
-        return num;
-    }
+		divident -= divideable;
+        divident.to_size(m + 1);
+		for (size_t j = 0; j <= m; j++) divident_pref[j] = divident.value(j);
+		for (size_t j = m; j > 0; j--) divident_pref[j] = divident_pref[j - 1];
+		res[sz - i - 1] = cur.data[0];
+	}
+	big_integer ans(res, 0);
+	if (a.sign ^ b.sign) ans = -ans;
+	return ans;
 }
 
-big_integer::big_integer() : digits(1) {}
+big_integer operator % (big_integer const& a, big_integer const& b) {
+	return a - (a / b) * b;
+}
 
-big_integer::big_integer(big_integer const& other) = default;
+big_integer binpow(int k) {
+	if (!k) return big_integer(1);
+	if (k % 2) return binpow(k - 1) * 2; else {
+		big_integer cur = binpow(k / 2);
+		return cur * cur;
+	}
+}
 
-big_integer::big_integer(std::vector<uint32_t> const& other, bool negative) : digits(other)
+big_integer operator >> (big_integer const& a, int b) {
+	big_integer res = a / binpow(b);
+	if (a < 0) --res;
+	return res;
+}
+
+big_integer operator << (big_integer const& a, int b) {
+	return a * binpow(b);
+}
+
+big_integer operator & (big_integer const& a, big_integer const& b) {
+    uint_vector res(std::max(a.len(), b.len()));
+	for (size_t i = 0; i < res.size(); i++) res[i] = a.value(i) & b.value(i);
+	return big_integer(res, a.sign & b.sign);
+
+}
+
+big_integer operator | (big_integer const& a, big_integer const& b) {
+    uint_vector res(std::max(a.len(), b.len()));
+	for (size_t i = 0; i < res.size(); i++) res[i] = a.value(i) | b.value(i);
+	return big_integer(res, a.sign | b.sign);
+
+}
+
+big_integer operator ^ (big_integer const& a, big_integer const& b) {
+    uint_vector res(std::max(a.len(), b.len()));
+	for (size_t i = 0; i < res.size(); i++) res[i] = a.value(i) ^ b.value(i);
+	return big_integer(res, a.sign ^ b.sign);
+}
+
+big_integer& big_integer::operator += (big_integer const& rhs) {
+	(*this) = (*this) + rhs;
+	return (*this);
+}
+big_integer& big_integer::operator -= (big_integer const& rhs) {
+	(*this) = (*this) - rhs;
+	return (*this);
+}
+big_integer& big_integer::operator *= (big_integer const& rhs) {
+	(*this) = (*this) * rhs;
+	return (*this);
+}
+big_integer& big_integer::operator /= (big_integer const& rhs) {
+	(*this) = (*this) / rhs;
+	return (*this);
+}
+big_integer& big_integer::operator %= (big_integer const& rhs) {
+	(*this) = (*this) % rhs;
+	return (*this);
+}
+big_integer& big_integer::operator &= (big_integer const& rhs) {
+	(*this) = (*this) & rhs;
+	return (*this);
+}
+big_integer& big_integer::operator |= (big_integer const& rhs) {
+	(*this) = (*this) | rhs;
+	return (*this);
+}
+big_integer& big_integer::operator ^= (big_integer const& rhs) {
+	(*this) = (*this) ^ rhs;
+	return (*this);
+}
+
+bool operator == (big_integer const& p, big_integer const& q) {
+	big_integer a = p, b = q;
+	if (a.sign != b.sign) return false;
+	if (a.len() != b.len()) return false;
+	for (size_t i = 0; i < a.len(); i++) if (a.data[i] != b.data[i]) return false;
+	return true;
+}
+bool operator != (big_integer const& a, big_integer const& b) {
+	return !(a == b);
+}
+bool operator < (big_integer const& p, big_integer const& q) {
+	big_integer a = p, b = q;
+	if (a.sign != b.sign) return a.sign;
+	if (a.len() < b.len()) return !a.sign;
+	if (a.len() > b.len()) return a.sign;
+	for (size_t i = a.len(); i > 0; i--) {
+		if (a.data[i - 1] < b.data[i - 1]) return !a.sign;
+		if (a.data[i - 1] > b.data[i - 1]) return a.sign;
+	}
+	return false;
+}
+bool operator > (big_integer const& a, big_integer const& b) {
+	return (b < a);
+}
+bool operator <= (big_integer const& a, big_integer const& b) {
+	return !(a > b);
+}
+bool operator >= (big_integer const& a, big_integer const& b) {
+	return !(a < b);
+}
+
+big_integer& big_integer::operator <<= (int rhs) {
+	(*this) = (*this) << rhs;
+	return (*this);
+}
+big_integer& big_integer::operator >>= (int rhs) {
+	(*this) = (*this) >> rhs;
+	return (*this);
+}
+
+std::string to_string(big_integer const & a)
 {
-    negative ? negate() : normalize();
+	std::string res = "";
+	if (a.data.empty()) {
+		return (a.sign) ? "-1" : "0";
+	}
+	big_integer ac = a.abs();
+	while (!ac.data.empty()) {
+		big_integer rem = ac % 10;
+		res += char(rem.value(0) + '0');
+		ac = ac / 10;
+	}
+	if (a.sign) res.push_back('-');
+	reverse(res.begin(), res.end());
+	return res;
 }
 
-void big_integer::push_uint64(uint64_t value)
+std::ostream & operator<<(std::ostream & out, big_integer const & a)
 {
-    digits.push_back(static_cast<uint32_t>(value));
-    digits.push_back(static_cast<uint32_t>(value >> BASE_POW));
+	return (out << to_string(a));
 }
+/*
+#include <iostream>
 
-big_integer::big_integer(long a) : big_integer(static_cast<long long>(a)) {}
-big_integer::big_integer(int value) : big_integer(static_cast<long long>(value)) {}
-big_integer::big_integer(long long value)
-{
-    push_uint64(static_cast<uint64_t>(value));
-
-    normalize();
+int main() {
+	big_integer a({ 4, 0 }, 1);
+	big_integer b = a.abs();
+	assert(b >= 0);
+	return 0;
 }
-big_integer::big_integer(unsigned int value) : big_integer(static_cast<unsigned long long>(value)) {}
-big_integer::big_integer(unsigned long value) : big_integer(static_cast<unsigned long long>(value)) {}
-big_integer::big_integer(unsigned long long value)
-{
-    push_uint64(value);
-    digits.push_back(0);
-
-    normalize();
-}
-
-big_integer::big_integer(std::string const& str) : big_integer()
-{
-    if (str.empty() || str == "-")
-    {
-        throw std::invalid_argument("not a number");
-    }
-
-    for (size_t i = (str[0] == '-'); i < str.size(); i += UINT32_DIGITS_CAP)
-    {
-        size_t size = std::min(str.size() - i, UINT32_DIGITS_CAP);
-        this->short_multiply(DEC_POWERS[size]);
-        *this += ::string_to_int32(str.c_str(), i, size);
-    }
-
-    if (str[0] == '-')
-    {
-        negate();
-    }
-}
-
-big_integer::~big_integer() = default;
-
-big_integer& big_integer::operator=(big_integer const& other) = default;
-
-bool big_integer::is_zero() const
-{
-    return digits.size() == 1 && digits.back() == 0;
-}
-
-bool big_integer::is_negative() const
-{
-    return ::is_negative(digits.back());
-}
-
-uint32_t big_integer::get_higher_insignificant() const
-{
-    return is_negative() ? BASE_MAX_VALUE : 0;
-}
-
-uint32_t big_integer::get_higher_significant() const
-{
-    if (this->is_zero())
-    {
-        return 0;
-    }
-    else
-    {
-        size_t size = this->size();
-        return this->digits[size - (this->digits[size - 1] == 0 ? 2 : 1)];
-    }
-}
-
-uint32_t big_integer::at(size_t index) const
-{
-    return at(static_cast<int32_t>(index));
-}
-
-uint32_t big_integer::at(int32_t index) const
-{
-    if (0 <= index && index < size())
-    {
-        return digits[index];
-    }
-    else if (index < 0)
-    {
-        return 0;
-    }
-    else
-    {
-        return get_higher_insignificant();
-    }
-}
-
-big_integer& big_integer::reserve(size_t sz)
-{
-    digits.resize(sz, get_higher_insignificant());
-    return *this;
-}
-
-big_integer& big_integer::resize(size_t sz)
-{
-    if (sz > digits.size())
-    {
-        digits.assign(sz, 0);
-    }
-    return *this;
-}
-
-big_integer& big_integer::normalize()
-{
-    for (size_t i = size() - 1; i > 0; i--)
-    {
-        if ((digits[i] == 0 && !::is_negative(digits[i - 1])) ||
-            (digits[i] == BASE_MAX_VALUE && ::is_negative(digits[i - 1])))
-        {
-            digits.pop_back();
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    return *this;
-}
-
-big_integer& big_integer::negate()
-{
-    reserve(size() + 1);
-
-    uint64_t carry_flag = true;
-    for (uint32_t & i : digits)
-    {
-        carry_flag += ~i;
-        i = carry_flag & BASE_MAX_VALUE;
-        carry_flag >>= BASE_POW;
-    }
-
-    return normalize();
-}
-
-big_integer big_integer::abs() const
-{
-    if (this->is_negative())
-    {
-        return -*this;
-    }
-    else
-    {
-        return *this;
-    }
-}
-
-size_t big_integer::size() const
-{
-    return digits.size();
-}
-
-size_t size_of_posed(size_t size, size_t pos)
-{
-    return pos < size ? size - pos : 0;
-}
-
-bool big_integer::positional_is_less(big_integer const& rhs, size_t this_pos = 0, size_t rhs_pos = 0) const
-{
-    size_t posed_this = size_of_posed(this->size(), this_pos);
-    size_t posed_rhs = size_of_posed(rhs.size(), rhs_pos);
-
-    bool is_a_negative = this->is_negative();
-    bool is_b_negative = rhs.is_negative();
-
-    if (is_a_negative != is_b_negative)
-    {
-        return is_a_negative;
-    }
-    else if (posed_this != posed_rhs)
-    {
-        return (posed_this < posed_rhs) ^ is_a_negative;
-    }
-    else
-    {
-        for (size_t i = this->size(); this->size() - i < posed_this; i--)
-        {
-            size_t j = rhs.size() - this->size() + i;
-            if (this->at(i - 1) != rhs.at(j - 1))
-            {
-                return this->at(i - 1) < rhs.at(j - 1);
-            }
-        }
-
-        return false;
-    }
-}
-
-big_integer& big_integer::positional_sub(const big_integer& rhs, size_t pos = 0)
-{
-    size_t posed_size = size_of_posed(size(), pos);
-    reserve(pos + std::max(posed_size, rhs.size()) + 1);
-
-    uint64_t carry_flag = 1;
-    for (size_t i = pos; i < size(); i++)
-    {
-        ::sum_with_carry(carry_flag, digits[i], ~rhs.at(i - pos));
-    }
-
-    return normalize();
-}
-
-big_integer& big_integer::operator+=(big_integer const& rhs)
-{
-    reserve(std::max(this->size(), rhs.size()) + 1);
-
-    uint64_t carry_flag = 0;
-    for (size_t i = 0; i < size(); i++)
-    {
-        ::sum_with_carry(carry_flag, digits[i], rhs.at(i));
-    }
-
-    return normalize();
-}
-
-big_integer& big_integer::operator-=(big_integer const& rhs)
-{
-    return positional_sub(rhs);
-}
-
-big_integer& big_integer::short_multiply(uint32_t positive_mul)
-{
-    reserve(size() + 1);
-
-    uint64_t carry_flag = 0;
-    for (uint32_t& i : digits)
-    {
-        carry_flag += static_cast<uint64_t>(positive_mul) * i;
-        i = carry_flag & BASE_MAX_VALUE;
-        carry_flag = carry_flag >> BASE_POW;
-    }
-
-    return normalize();
-}
-
-big_integer& big_integer::operator*=(big_integer const& rhs)
-{
-    bool sign = this->is_negative() ^ rhs.is_negative();
-
-    big_integer first(this->abs());
-    big_integer second(rhs.abs());
-
-    first.reserve(this->size() + 1);
-    this->resize(this->size() * second.size() + 2);
-
-    for (size_t i = 0; i < second.size(); i++)
-    {
-        uint64_t carry_flag = 0;
-        for (size_t j = 0; j < first.size(); j++)
-        {
-            uint64_t to_add = carry_flag + digits[i + j] + static_cast<uint64_t>(second.digits[i]) * first.digits[j];
-            digits[i + j] = to_add & BASE_MAX_VALUE;
-            carry_flag = to_add >> BASE_POW;
-        }
-    }
-
-    return sign ? negate() : normalize();
-}
-
-uint32_t big_integer::short_divide(const uint32_t rhs)
-{
-    bool sign = this->is_negative();
-
-    if (sign)
-    {
-        negate();
-    }
-
-    uint64_t carry_flag = 0;
-    for (size_t i = size(); i > 0; i--)
-    {
-        uint64_t current = carry_flag * (1ULL << BASE_POW) + digits[i - 1];
-        digits[i - 1] = current / rhs;
-        carry_flag = current % rhs;
-    }
-
-    if (sign)
-    {
-        negate();
-    }
-    else
-    {
-        normalize();
-    }
-
-    return sign ? (rhs - carry_flag) : carry_flag;
-}
-
-big_integer& big_integer::operator/=(big_integer const& rhs)
-{
-    return *this = *this / rhs;
-}
-
-big_integer& big_integer::operator%=(big_integer const& rhs)
-{
-    return *this -= (*this / rhs) * rhs;
-}
-
-big_integer& big_integer::bitwise_operation(big_integer const& rhs, void(f)(uint32_t&, uint32_t))
-{
-    reserve(std::max(this->size(), rhs.size()));
-
-    for (size_t i = 0; i < digits.size(); i++)
-    {
-        f(digits[i], rhs.at(i));
-    }
-
-    return normalize();
-}
-
-big_integer& big_integer::operator&=(big_integer const& rhs)
-{
-    return bitwise_operation(rhs, [](uint32_t& a, uint32_t b) { a &= b; });
-}
-
-big_integer& big_integer::operator|=(big_integer const& rhs)
-{
-    return bitwise_operation(rhs, [](uint32_t& a, uint32_t b) { a |= b; });
-}
-
-big_integer& big_integer::operator^=(big_integer const& rhs)
-{
-    return bitwise_operation(rhs, [](uint32_t& a, uint32_t b) { a ^= b; });
-}
-
-big_integer& big_integer::operator<<=(int rhs)
-{
-    size_t block = rhs / BASE_POW;
-    size_t rest = rhs % BASE_POW;
-
-    this->reserve(this->size() + block + 1);
-
-    if (rest == 0)
-    {
-        for (size_t k = this->size(); k > 0; k--)
-        {
-            int32_t i = static_cast<int32_t>(k) - 1;
-            digits[i] = this->at(i - block);
-        }
-    }
-    else
-    {
-        for (size_t k = this->size(); k > 0; k--)
-        {
-            int32_t i = static_cast<int32_t>(k) - 1;
-            digits[i] = (this->at(i - block) << rest) | (this->at(i - block - 1) >> (BASE_POW - rest));
-        }
-    }
-
-    return this->normalize();
-}
-
-big_integer& big_integer::operator>>=(int rhs)
-{
-    size_t block = rhs / BASE_POW;
-    size_t rest = rhs % BASE_POW;
-
-    if (rest == 0)
-    {
-        for (size_t i = 0; i < size(); i++)
-        {
-            digits[i] = this->at(i + block);
-        }
-    }
-    else
-    {
-        for (size_t i = 0; i < size(); i++)
-        {
-            digits[i] = (this->at(i + block) >> rest) | (this->at(i + block + 1) << (BASE_POW - rest));
-        }
-    }
-
-    return this->normalize();
-}
-
-big_integer big_integer::operator+() const
-{
-    return *this;
-}
-
-big_integer big_integer::operator-() const
-{
-    return big_integer(*this).negate();
-}
-
-big_integer big_integer::operator~() const
-{
-    big_integer temp;
-
-    temp.digits.pop_back();
-    for (auto& i : digits)
-    {
-        temp.digits.push_back(~i);
-    }
-
-    return temp.normalize();
-}
-
-big_integer& big_integer::operator++()
-{
-    *this += 1;
-    return *this;
-}
-
-big_integer big_integer::operator++(int)
-{
-    big_integer temp(*this);
-    ++(*this);
-    return temp;
-}
-
-big_integer& big_integer::operator--()
-{
-    *this += -1;
-    return *this;
-}
-
-big_integer big_integer::operator--(int)
-{
-    big_integer temp(*this);
-    --(*this);
-    return temp;
-}
-
-big_integer operator+(big_integer a, big_integer const& b)
-{
-    return a += b;
-}
-
-big_integer operator-(big_integer a, big_integer const& b)
-{
-    return a -= b;
-}
-
-big_integer operator*(big_integer a, big_integer const& b)
-{
-    return a *= b;
-}
-
-big_integer operator/(big_integer const& a, big_integer const& b)
-{
-    bool sign = a.is_negative() ^ b.is_negative();
-
-    big_integer dividend(a.abs());
-    big_integer divider(b.abs());
-
-    if (dividend >= divider)
-    {
-        std::vector<uint32_t> r_quotient;
-        r_quotient.reserve(dividend.size() - divider.size() + 1);
-
-        uint32_t higher_divider = divider.get_higher_significant();
-        const uint32_t f = BASE / (static_cast<uint64_t>(higher_divider) + 1);
-
-        dividend.short_multiply(f);
-        divider.short_multiply(f);
-
-        higher_divider = divider.get_higher_significant();
-        size_t divider_size = divider.size();
-
-        for (size_t i = dividend.size() - 1; i + 2 > divider_size; i--)
-        {
-            uint32_t candidate = std::min((static_cast<uint64_t>(dividend.at(i)) << BASE_POW | dividend.at(i - 1)) / higher_divider,
-                                          static_cast<uint64_t>(BASE_MAX_VALUE));
-
-            big_integer to_add = divider;
-            to_add.short_multiply(candidate);
-
-            size_t pos = i >= divider_size - 1 ? i - divider_size + 1 : 0;
-            while (candidate > 0 && dividend.positional_is_less(to_add, pos, 0))
-            {
-                candidate--;
-                to_add -= divider;
-            }
-
-            r_quotient.push_back(candidate);
-            dividend.positional_sub(to_add, pos);
-        }
-
-        std::reverse(r_quotient.begin(), r_quotient.end());
-
-        if (::is_negative(r_quotient.back()))
-        {
-            r_quotient.push_back(0);
-        }
-
-        return big_integer(r_quotient, sign);
-    }
-    else
-    {
-        return 0;
-    }
-}
-
-big_integer operator%(big_integer a, big_integer const& b)
-{
-    return a %= b;
-}
-
-big_integer operator&(big_integer a, big_integer const& b)
-{
-    return a &= b;
-}
-
-big_integer operator|(big_integer a, big_integer const& b)
-{
-    return a |= b;
-}
-
-big_integer operator^(big_integer a, big_integer const& b)
-{
-    return a ^= b;
-}
-
-big_integer operator<<(big_integer a, int b)
-{
-    return a <<= b;
-}
-
-big_integer operator>>(big_integer a, int b)
-{
-    return a >>= b;
-}
-
-bool operator==(big_integer const& a, big_integer const& b)
-{
-    return a.digits == b.digits;
-}
-
-bool operator!=(big_integer const& a, big_integer const& b)
-{
-    return a.digits != b.digits;
-}
-
-bool operator<(big_integer const& a, big_integer const& b)
-{
-    return a.positional_is_less(b);
-}
-
-bool operator>(big_integer const& a, big_integer const& b)
-{
-    return b < a;
-}
-
-bool operator<=(big_integer const& a, big_integer const& b)
-{
-    return !(a > b);
-}
-
-bool operator>=(big_integer const& a, big_integer const& b)
-{
-    return !(a < b);
-}
-
-std::string to_string(big_integer const& a)
-{
-    bool sign = a.is_negative();
-
-    big_integer temp = a.abs();
-    std::string result;
-
-    do
-    {
-        result.append(std::to_string(temp.short_divide(STRING_POW)));
-    } while (!temp.is_zero());
-
-    if (sign)
-    {
-        result.append("-");
-    }
-
-    std::reverse(result.begin(), result.end());
-
-    return result;
-}
-
-std::ostream& operator<<(std::ostream& s, big_integer const& a)
-{
-    return s << to_string(a);
-}
+*/
