@@ -26,6 +26,7 @@ big_integer::big_integer(std::string const& str) : big_integer() {
   uint32_t tmp = 0, pow = 1;
   uint32_t MAX_TMP = (UINT32_MAX - 9) / 10, MAX_POW = UINT32_MAX / 10;
   bool tmp_sgn = str[0] == '-';
+  if (str.substr(tmp_sgn).empty()) throw std::invalid_argument("Can't parse empty string to big_integer");
   for (size_t i = tmp_sgn; i < str.length(); i++) {
     if (!(str[i] >= '0' && str[i] <= '9')) throw std::invalid_argument("Error while parsing number");
     tmp = tmp * 10 + (str[i] - '0');
