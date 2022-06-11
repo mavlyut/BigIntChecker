@@ -12,6 +12,10 @@ uint32_t cast_to_uint32_t(uint64_t x) {
   return (uint32_t) (x & UINT32_MAX);
 }
 
+uint32_t cast_to_uint32_t(int x) {
+  return (uint32_t) (x & UINT32_MAX);
+}
+
 big_integer::big_integer() : sgn_(false), data_(0) {}
 
 big_integer::big_integer(big_integer const& other) : sgn_(other.sgn_), data_(other.data_) {
@@ -23,10 +27,10 @@ big_integer::big_integer(int a) : sgn_(a < 0), data_(1, cast_to_uint32_t(a)) {
 }
 
 big_integer::big_integer(std::string const& str) : big_integer() {
-  uint32_t tmp = 0, pow = 1;
-  uint32_t MAX_TMP = (UINT32_MAX - 9) / 10, MAX_POW = UINT32_MAX / 10;
   bool tmp_sgn = str[0] == '-';
   if (str.substr(tmp_sgn).empty()) throw std::invalid_argument("Can't parse empty string to big_integer");
+  uint32_t tmp = 0, pow = 1;
+  uint32_t MAX_TMP = (UINT32_MAX - 9) / 10, MAX_POW = UINT32_MAX / 10;
   for (size_t i = tmp_sgn; i < str.length(); i++) {
     if (!(str[i] >= '0' && str[i] <= '9')) throw std::invalid_argument("Error while parsing number");
     tmp = tmp * 10 + (str[i] - '0');
@@ -131,13 +135,13 @@ big_integer big_integer::operator--(int) {
 big_integer operator+(big_integer a, big_integer const& b) {
   size_t new_size = std::max(a.size(), b.size()) + 1;
   digits new_data(new_size);
-  uint32_t carry = 0;
+  uint64_t carry = 0;
   for (size_t i = 0; i < new_size; i++) {
     uint64_t tmp = carry + a[i] + b[i];
     new_data[i] = cast_to_uint32_t(tmp);
     carry = tmp >> 32;
   }
-  return big_integer(new_data, new_data[new_size - 1] & (1 << 31));
+  return big_integer(new_data, new_data.back() & (1 << 31));
 }
 
 big_integer operator-(big_integer a, big_integer const& b) {
@@ -145,22 +149,20 @@ big_integer operator-(big_integer a, big_integer const& b) {
   digits new_data(new_size);
   uint64_t carry = 1;
   for (size_t i = 0; i < new_size; i++) {
-    uint64_t tmp = carry + a[i] + (~b[i]);
+    uint64_t tmp = carry + a[i] + ~b[i];
     new_data[i] = cast_to_uint32_t(tmp);
     carry = tmp >> 32;
   }
-  return big_integer(new_data, (new_data[new_size - 1] & (1 << 31)));
+  return big_integer(new_data, (new_data.back() & (1 << 31)));
 }
 
 big_integer operator*(big_integer a, big_integer const& b) {
-  if (a.eq_zero() || b.eq_zero()) {
-    return 0;
-  }
+  if (a.eq_zero() || b.eq_zero()) return 0;
   big_integer c = a.abs();
   big_integer d = b.abs();
-  if (c.size() > d.size()) c.swap(d);
   digits new_data;
-  if (c.size() == 1) new_data = d.mul_uint32_t(c[0]);
+  if (d.size() == 1) new_data = c.mul_uint32_t(d[0]);
+  else if (c.size() == 1) new_data = d.mul_uint32_t(c[0]);
   else {
     new_data.resize(c.size() + d.size() + 1, 0);
     for (size_t i = 0; i < c.size(); i++) {
@@ -177,12 +179,12 @@ big_integer operator*(big_integer a, big_integer const& b) {
   return big_integer(new_data, a.sgn() ^ b.sgn()).norm();
 }
 
-uint32_t trial(uint32_t const a, uint32_t const b, uint32_t const div) {
-  return cast_to_uint32_t(std::min(ONE_64 + UINT32_MAX, ((uint64_t(a) << 32) + b) / div));
-}
-
 void delete_leading_zeroes(digits& x) {
   while (!x.empty() && x.back() == 0) x.pop_back();
+}
+
+uint32_t trial(uint32_t const a, uint32_t const b, uint32_t const div) {
+  return cast_to_uint32_t(std::min(ONE_64 + UINT32_MAX, ((uint64_t(a) << 32) + b) / div));
 }
 
 bool smaller(digits const& a, digits const& b, size_t x) {
@@ -311,7 +313,7 @@ std::string to_string(big_integer const& a) {
     }
     b /= 1000000000;
   }
-  while (ans[ans.length() - 1] == '0') ans.pop_back();
+  while (ans.length() > 0 && ans[ans.length() - 1] == '0') ans.pop_back();
   if (a.sgn_) ans.push_back('-');
   std::reverse(ans.begin(), ans.end());
   return ans;
@@ -374,14 +376,14 @@ digits big_integer::mul_uint32_t(uint32_t x) const {
 }
 
 digits mul_uint32_t(digits const& d, uint32_t x) {
-  uint32_t carry = 0;
+  uint64_t carry = 0;
   digits new_data(d.size() + 1);
   for (size_t i = 0; i < d.size(); i++) {
     uint64_t tmp = uint64_t(d[i]) * x + carry;
     new_data[i] = cast_to_uint32_t(tmp);
     carry = tmp >> 32;
   }
-  new_data[d.size()] = carry;
+  new_data[d.size()] = cast_to_uint32_t(carry);
   return new_data;
 }
 
