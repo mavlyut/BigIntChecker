@@ -64,7 +64,7 @@ struct big_integer {
   std::vector<uint32_t> div_uint32_t(uint32_t x) const;
   uint32_t operator[](size_t ind) const;
   bool sgn() const;
-  big_integer norm() const;
+  big_integer norm();
 
 private:
   std::vector<uint32_t> data_;
@@ -103,3 +103,4 @@ bool operator>=(big_integer const& a, big_integer const& b);
 
 std::string to_string(big_integer const& a);
 std::ostream& operator<<(std::ostream& s, big_integer const& a);
+

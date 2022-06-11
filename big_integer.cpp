@@ -166,7 +166,7 @@ big_integer operator*(big_integer a, big_integer const& b) {
     for (size_t i = 0; i < c.size(); i++) {
       uint64_t carry = 0;
       for (size_t j = 0; j < d.size(); j++) {
-        uint64_t mul = (uint64_t) c[i] * d[i];
+        uint64_t mul = (uint64_t) c[i] * d[j];
         uint64_t tmp = carry + new_data[i + j] + cast_to_uint32_t(mul);
         new_data[i + j] = cast_to_uint32_t(tmp);
         carry = (tmp >> 32) + (mul >> 32);
@@ -335,7 +335,7 @@ const std::function<uint32_t(uint32_t, uint32_t)> big_integer::bit_and = [](uint
 const std::function<uint32_t(uint32_t, uint32_t)> big_integer::bit_or  = [](uint32_t a, uint32_t b) { return a | b; };
 const std::function<uint32_t(uint32_t, uint32_t)> big_integer::bit_xor = [](uint32_t a, uint32_t b) { return a ^ b; };
 
-big_integer::big_integer(digits data, bool sgn) : data_(std::move(data)), sgn_(sgn) {
+big_integer::big_integer(digits data, bool sgn) : data_(data), sgn_(sgn) {
   delete_leading_zeroes();
 }
 
@@ -397,17 +397,15 @@ digits big_integer::div_uint32_t(uint32_t x) const {
   return new_data;
 }
 
-big_integer big_integer::norm() const {
+big_integer big_integer::norm() {
   if (!sgn_) return *this;
   uint64_t carry = 1, tmp = 0;
-  digits new_data(size() + 1);
+  data_.resize(size() + 1);
   for (size_t i = 0; i < size(); i++) {
-    tmp = carry + ~operator[](i);
-    new_data[i] = cast_to_uint32_t(tmp);
+    tmp = carry + (~operator[](i));
+    data_[i] = cast_to_uint32_t(tmp);
     carry = tmp >> 32;
   }
-  big_integer ans(new_data, sgn_);
-  ans.delete_leading_zeroes();
-  return ans;
+  return *this;
 }
 
