@@ -56,7 +56,7 @@ struct big_integer {
   friend big_integer operator<<(big_integer a, int b);
   friend big_integer operator>>(big_integer a, int b);
 
-  [[nodiscard]] size_t size() const;
+  size_t size() const;
   bool eq_zero() const;
   big_integer abs() const;
   void swap(big_integer& other);
@@ -72,7 +72,7 @@ private:
 
   void delete_leading_zeroes();
 
-  friend big_integer bit_operation(std::function<uint32_t(uint32_t, uint32_t)> f, big_integer a, big_integer const& b);
+  friend big_integer bit_operation(std::function<uint32_t(uint32_t, uint32_t)> const& f, big_integer const& a, big_integer const& b);
 
   static const std::function<uint32_t(uint32_t, uint32_t)> bit_and;
   static const std::function<uint32_t(uint32_t, uint32_t)> bit_xor;
@@ -103,4 +103,3 @@ bool operator>=(big_integer const& a, big_integer const& b);
 
 std::string to_string(big_integer const& a);
 std::ostream& operator<<(std::ostream& s, big_integer const& a);
-

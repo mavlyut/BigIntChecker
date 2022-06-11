@@ -357,7 +357,7 @@ big_integer big_integer::abs() const {
   return sgn_ ? -*this : *this;
 }
 
-big_integer bit_operation(std::function<uint32_t(uint32_t, uint32_t)> f, big_integer a, big_integer const& b) {
+big_integer bit_operation(std::function<uint32_t(uint32_t, uint32_t)> const& f, big_integer const& a, big_integer const& b) {
   digits new_data(std::max(a.size(), b.size()));
   for (size_t i = 0; i < new_data.size(); i++) new_data[i] = f(a[i], b[i]);
   return big_integer(new_data, f(a.sgn_, b.sgn_));
