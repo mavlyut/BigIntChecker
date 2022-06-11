@@ -27,7 +27,7 @@ big_integer::big_integer(std::string const& str) : big_integer() {
   uint32_t MAX_TMP = (UINT32_MAX - 9) / 10, MAX_POW = UINT32_MAX / 10;
   bool tmp_sgn = str[0] == '-';
   for (size_t i = tmp_sgn; i < str.length(); i++) {
-    if (!(str[i] >= '0' && str[i] <= '9')) throw std::runtime_error("Error while parsing number");
+    if (!(str[i] >= '0' && str[i] <= '9')) throw std::invalid_argument("Error while parsing number");
     tmp = tmp * 10 + (str[i] - '0');
     pow *= 10;
     if (tmp > MAX_TMP || pow > MAX_POW) {
@@ -202,7 +202,7 @@ void difference(digits& a, digits const& b, size_t x) {
 }
 
 big_integer operator/(big_integer a, big_integer const& b) {
-  if (b.eq_zero()) throw std::runtime_error("Error while evaluating a / b: division by zero");
+  if (b.eq_zero()) throw std::invalid_argument("Error while evaluating a / b: division by zero");
   big_integer c = a.abs();
   big_integer d = b.abs();
   if (c < d) return 0;
