@@ -30,7 +30,7 @@ struct big_integer {
   big_integer& operator|=(big_integer const& rhs);
   big_integer& operator^=(big_integer const& rhs);
 
-  big_integer& operator<<=(int rhs);
+  big_integer& operator<<=(size_t rhs);
   big_integer& operator>>=(int rhs);
 
   big_integer operator+() const;
@@ -58,7 +58,7 @@ struct big_integer {
   friend big_integer operator|(big_integer a, big_integer const& b);
   friend big_integer operator^(big_integer a, big_integer const& b);
 
-  friend big_integer operator<<(big_integer a, int b);
+  friend big_integer operator<<(big_integer a, size_t b);
   friend big_integer operator>>(big_integer a, int b);
 
   size_t size() const;
@@ -96,7 +96,7 @@ big_integer operator&(big_integer a, big_integer const& b);
 big_integer operator|(big_integer a, big_integer const& b);
 big_integer operator^(big_integer a, big_integer const& b);
 
-big_integer operator<<(big_integer a, int b);
+big_integer operator<<(big_integer a, size_t b);
 big_integer operator>>(big_integer a, int b);
 
 bool operator==(big_integer const& a, big_integer const& b);
