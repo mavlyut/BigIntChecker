@@ -269,7 +269,7 @@ big_integer operator<<(big_integer a, int b) {
   if (b < 0) return a >> (-b);
   digits new_data(b / 32, 0);
   size_t mod = b % 32;
-  for (size_t i = 0; i < a.size() + 1; i++) {
+  for (size_t i = 0; i <= a.size(); i++) {
     uint32_t tmp = (a[i] << mod) & UINT32_MAX;
     if (i > 0) tmp += (a[i - 1] >> (32 - mod));
     new_data.push_back(tmp);
