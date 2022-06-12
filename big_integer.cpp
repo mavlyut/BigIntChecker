@@ -102,7 +102,7 @@ big_integer& big_integer::operator^=(big_integer const& rhs) {
   return *this = *this ^ rhs;
 }
 
-big_integer& big_integer::operator<<=(size_t rhs) {
+big_integer& big_integer::operator<<=(int rhs) {
   return *this = *this << rhs;
 }
 
@@ -267,7 +267,8 @@ big_integer operator^(big_integer a, big_integer const& b) {
   return bit_operation(big_integer::bit_xor, a, b);
 }
 
-big_integer operator<<(big_integer a, size_t b) {
+big_integer operator<<(big_integer a, int b) {
+  if (b < 0) return a >> (-b);
   digits new_data(b / 32, 0);
   size_t mod = b % 32;
   for (size_t i = 0; i < a.size(); i++) {
@@ -279,6 +280,7 @@ big_integer operator<<(big_integer a, size_t b) {
 }
 
 big_integer operator>>(big_integer a, int b) {
+  if (b < 0) return a << (-b);
   digits new_data;
   size_t mod = b % 32;
   for (size_t i = b / 32; i < a.size(); i++) {
