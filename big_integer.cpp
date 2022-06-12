@@ -267,27 +267,49 @@ big_integer operator^(big_integer a, big_integer const& b) {
   return bit_operation(big_integer::bit_xor, a, b);
 }
 
-big_integer operator<<(big_integer a, int b) {
-  if (b < 0) return a >> (-b);
-  digits new_data(b / 32, 0);
-  size_t mod = b % 32;
-  uint32_t tmp;
-  for (size_t i = 0; i < a.size(); i++) {
-    tmp = (a[i] << mod) & UINT32_MAX;
-    if (i > 0) tmp += (a[i - 1] >> (32 - mod));
-    new_data.push_back(tmp);
+//big_integer operator<<(big_integer a, int b) {
+//  if (b < 0) return a >> (-b);
+//  digits new_data(b / 32, 0);
+//  size_t mod = b % 32;
+//  uint32_t tmp;
+//  for (size_t i = 0; i < a.size(); i++) {
+//    tmp = (a[i] << mod) & UINT32_MAX;
+//    if (i > 0) tmp += (a[i - 1] >> (32 - mod));
+//    new_data.push_back(tmp);
+//  }
+//  return big_integer(new_data, a.sgn_);
+//}
+//
+//big_integer operator>>(big_integer a, int b) {
+//  if (b < 0) return a << (-b);
+//  digits new_data;
+//  size_t mod = b % 32;
+//  for (size_t i = b / 32; i < a.size(); i++) {
+//    new_data.push_back((a[i] >> mod) + ((a[i + 1] << (32 - mod)) & UINT32_MAX));
+//  }
+//  return big_integer(new_data, a.sgn_);
+//}
+
+big_integer operator>>(big_integer a, int shift) {
+  digits res;
+  size_t mod = shift % 32;
+  uint32_t c;
+  for (size_t i = shift / 32; i < a.size(); i++) {
+    c = (a[i] >> mod) + ((a[i + 1] << (32 - mod)) & UINT32_MAX);
+    res.push_back(c);
   }
-  return big_integer(new_data, a.sgn_);
+  return big_integer(res, a.sgn());
 }
 
-big_integer operator>>(big_integer a, int b) {
-  if (b < 0) return a << (-b);
-  digits new_data;
-  size_t mod = b % 32;
-  for (size_t i = b / 32; i < a.size(); i++) {
-    new_data.push_back((a[i] >> mod) + ((a[i + 1] << (32 - mod)) & UINT32_MAX));
+big_integer operator<<(big_integer a, int shift) {
+  digits res(shift / 32, 0);
+  size_t mod = shift % 32;
+  uint32_t c;
+  for (size_t i = 0; i < a.size(); i++) {
+    c = ((a[i] << mod) & UINT32_MAX) + (i > 0 ? (a[i - 1] >> (32 - mod)) : 0);
+    res.push_back(c);
   }
-  return big_integer(new_data, a.sgn_);
+  return big_integer(res, a.sgn());
 }
 
 bool operator==(big_integer const& a, big_integer const& b) {
