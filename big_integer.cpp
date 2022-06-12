@@ -12,9 +12,9 @@ uint32_t cast_to_uint32_t(T x) {
   return (uint32_t) (x & UINT32_MAX);
 }
 
-big_integer::big_integer() : sgn_(false), data_(0) {}
+big_integer::big_integer() : data_(0), sgn_(false) {}
 
-big_integer::big_integer(big_integer const& other) : sgn_(other.sgn_), data_(other.data_) {
+big_integer::big_integer(big_integer const& other) : data_(other.data_), sgn_(other.sgn_) {
   delete_leading_zeroes();
 }
 
@@ -269,7 +269,7 @@ big_integer operator<<(big_integer a, int b) {
   if (b < 0) return a >> (-b);
   digits new_data(b / 32, 0);
   size_t mod = b % 32;
-  for (size_t i = 0; i < a.size(); i++) {
+  for (size_t i = 0; i <= a.size(); i++) {
     uint32_t tmp = (a[i] << mod) & UINT32_MAX;
     if (i > 0) tmp += (a[i - 1] >> (32 - mod));
     new_data.push_back(tmp);
