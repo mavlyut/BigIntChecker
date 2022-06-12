@@ -9,15 +9,8 @@ typedef std::vector<uint32_t> digits;
 static constexpr uint64_t ONE_64 = 1;
 static constexpr uint64_t POW32 = ONE_64 + UINT32_MAX;
 
-uint32_t cast_to_uint32_t(uint64_t x) {
-  return (uint32_t) (x & UINT32_MAX);
-}
-
-uint32_t cast_to_uint32_t(int64_t x) {
-  return (uint32_t) (x & UINT32_MAX);
-}
-
-uint32_t cast_to_uint32_t(int32_t x) {
+template<typename T>
+uint32_t cast_to_uint32_t(T x) {
   return (uint32_t) (x & UINT32_MAX);
 }
 
@@ -42,8 +35,10 @@ big_integer::big_integer(long long a) : sgn_(a < 0) {
 }
 
 big_integer::big_integer(unsigned long long a) : sgn_(false) {
-  data_.push_back(cast_to_uint32_t(a));
-  data_.push_back(cast_to_uint32_t(a >> 32));
+  while (a != 0) {
+    data_.push_back(cast_to_uint32_t(a));
+    a >>= 32;
+  }
   delete_leading_zeroes();
 }
 
@@ -119,7 +114,6 @@ big_integer big_integer::operator+() const {
   return *this;
 }
 
-// todo, done?
 big_integer big_integer::operator-() const {
   if (eq_zero()) return *this;
   return ~*this + 1;
