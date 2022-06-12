@@ -4,7 +4,6 @@
 #include <ostream>
 #include <stdexcept>
 #include <utility>
-#include <iostream>
 
 typedef std::vector<uint32_t> digits;
 static constexpr uint64_t ONE_64 = 1;
@@ -14,7 +13,11 @@ uint32_t cast_to_uint32_t(uint64_t x) {
   return (uint32_t) (x & UINT32_MAX);
 }
 
-uint32_t cast_to_uint32_t(int x) {
+uint32_t cast_to_uint32_t(int64_t x) {
+  return (uint32_t) (x & UINT32_MAX);
+}
+
+uint32_t cast_to_uint32_t(int32_t x) {
   return (uint32_t) (x & UINT32_MAX);
 }
 
@@ -24,7 +27,23 @@ big_integer::big_integer(big_integer const& other) : sgn_(other.sgn_), data_(oth
   delete_leading_zeroes();
 }
 
-big_integer::big_integer(int a) : sgn_(a < 0), data_(1, cast_to_uint32_t(a)) {
+big_integer::big_integer(int a) : big_integer((long) a) {}
+
+big_integer::big_integer(unsigned a) : big_integer((unsigned long) a) {}
+
+big_integer::big_integer(long a) : big_integer((long long) a) {}
+
+big_integer::big_integer(unsigned long a) : big_integer((unsigned long long) a) {}
+
+big_integer::big_integer(long long a) : sgn_(a < 0) {
+  data_.push_back(cast_to_uint32_t(a));
+  data_.push_back(cast_to_uint32_t(a >> 32));
+  delete_leading_zeroes();
+}
+
+big_integer::big_integer(unsigned long long a) : sgn_(false) {
+  data_.push_back(cast_to_uint32_t(a));
+  data_.push_back(cast_to_uint32_t(a >> 32));
   delete_leading_zeroes();
 }
 
@@ -257,9 +276,10 @@ big_integer operator^(big_integer a, big_integer const& b) {
 big_integer operator<<(big_integer a, int b) {
   digits new_data(b / 32, 0);
   size_t mod = b % 32;
-  new_data.push_back((a[0] << mod) & UINT32_MAX);
-  for (size_t i = 1; i < a.size(); i++) {
-    new_data.push_back((a[i] << mod) & UINT32_MAX + (a[i - 1] >> (32 - mod)));
+  for (size_t i = 0; i < a.size(); i++) {
+    uint32_t tmp = (a[i] << mod) & UINT32_MAX;
+    if (i > 0) tmp += (a[i - 1] >> (32 - mod));
+    new_data.push_back(tmp);
   }
   return big_integer(new_data, a.sgn_);
 }
@@ -368,7 +388,7 @@ big_integer bit_operation(std::function<uint32_t(uint32_t, uint32_t)> const& f, 
 }
 
 void big_integer::delete_leading_zeroes() {
-  while (!data_.empty() && (sgn_ && data_[size() - 1] == UINT32_MAX || !sgn_ && data_[size() - 1] == 0)) {
+  while (!data_.empty() && ((sgn_ && data_[size() - 1] == UINT32_MAX) || (!sgn_ && data_[size() - 1] == 0))) {
     data_.pop_back();
   }
 }

@@ -10,6 +10,11 @@ struct big_integer {
   big_integer(std::vector<uint32_t> data, bool sgn);
   big_integer(big_integer const& other);
   big_integer(int a);
+  big_integer(unsigned a);
+  big_integer(long a);
+  big_integer(unsigned long a);
+  big_integer(long long a);
+  big_integer(unsigned long long a);
   explicit big_integer(std::string const& str);
   ~big_integer();
 
