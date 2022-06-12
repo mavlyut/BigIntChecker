@@ -4,9 +4,11 @@
 #include <ostream>
 #include <stdexcept>
 #include <utility>
+#include <iostream>
 
 typedef std::vector<uint32_t> digits;
 static constexpr uint64_t ONE_64 = 1;
+static constexpr uint64_t POW32 = ONE_64 + UINT32_MAX;
 
 uint32_t cast_to_uint32_t(uint64_t x) {
   return (uint32_t) (x & UINT32_MAX);
@@ -183,25 +185,25 @@ void delete_leading_zeroes(digits& x) {
   while (!x.empty() && x.back() == 0) x.pop_back();
 }
 
+void difference(digits& a, digits const& b, size_t x) {
+  uint64_t carry = 1;
+  for (size_t i = 0; i < b.size(); i++) {
+    uint64_t tmp = carry + a[i + x] + ~b[i];
+    a[i + x] = cast_to_uint32_t(tmp);
+    carry = tmp >> 32;
+  }
+}
+
 uint32_t trial(uint32_t const a, uint32_t const b, uint32_t const div) {
-  return cast_to_uint32_t(std::min(ONE_64 + UINT32_MAX, ((uint64_t(a) << 32) + b) / div));
+  return cast_to_uint32_t(std::min(POW32, ((uint64_t(a) << 32) + b) / div));
 }
 
 bool smaller(digits const& a, digits const& b, size_t x) {
   for (size_t i = b.size() - 1; ; i--) {
-    if (a[i + x] != b[i]) return a[i + x] < b[x];
+    if (a[i + x] != b[i]) return a[i + x] < b[i];
     if (i == 0) break;
   }
   return false;
-}
-
-void difference(digits& a, digits const& b, size_t x) {
-  uint64_t carry = 1;
-  for (size_t i = 0; i < b.size(); i++) {
-    uint64_t tmp = carry + a[i + x] + ~b[x];
-    a[i + x] = cast_to_uint32_t(tmp);
-    carry = tmp >> 32;
-  }
 }
 
 big_integer operator/(big_integer a, big_integer const& b) {
@@ -212,24 +214,24 @@ big_integer operator/(big_integer a, big_integer const& b) {
   digits new_data;
   if (d.size() == 1) new_data = c.div_uint32_t(d[0]);
   else {
-    uint32_t f = cast_to_uint32_t((ONE_64 + UINT32_MAX) / (ONE_64 + d.data_.back()));
     digits x = c.data_, y = d.data_, dq;
+    uint32_t f = cast_to_uint32_t(POW32 / (ONE_64 + y.back()));
     size_t ys = y.size();
-    digits q1 = mul_uint32_t(x, f), q2 = mul_uint32_t(y, f);
-    delete_leading_zeroes(q1);
-    delete_leading_zeroes(q2);
-    uint32_t div = q2.back();
-    new_data.resize(x.size() - ys + 2);
-    q1.push_back(0);
+    digits q = mul_uint32_t(x, f), r = mul_uint32_t(y, f);
+    delete_leading_zeroes(q);
+    delete_leading_zeroes(r);
+    uint32_t div = r.back();
+    new_data.resize(x.size() - ys + 1);
+    q.push_back(0);
     for (size_t k = new_data.size() - 1; ; k--) {
-      size_t qt = trial(q1[k + ys], q1[k + ys - 1], div);
-      dq = mul_uint32_t(q2, qt);
-      while (smaller(q1, dq, k)) {
+      uint32_t qt = trial(q[k + ys], q[k + ys - 1], div);
+      dq = mul_uint32_t(r, qt);
+      while (smaller(q, dq, k)) {
         qt--;
-        dq = mul_uint32_t(q2, qt);
+        dq = mul_uint32_t(r, qt);
       }
       new_data[k] = qt;
-      difference(q1, dq, k);
+      difference(q, dq, k);
       if (k == 0) break;
     }
   }
