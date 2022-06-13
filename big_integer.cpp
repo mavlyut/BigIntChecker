@@ -9,7 +9,7 @@ static constexpr uint64_t POW32 = ONE_64 + UINT32_MAX;
 
 template<typename T>
 uint32_t cast_to_uint32_t(T x) {
-  return (uint32_t) (x & UINT32_MAX);
+  return static_cast<uint32_t>(x & UINT32_MAX);
 }
 
 big_integer::big_integer() : data_(0), sgn_(false) {}
