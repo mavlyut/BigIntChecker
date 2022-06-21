@@ -89,7 +89,17 @@ big_integer::~big_integer() = default;
 big_integer& big_integer::operator=(big_integer const& other) = default;
 
 big_integer& big_integer::operator+=(big_integer const& rhs) {
-  return *this = *this + rhs;
+  size_t new_size = std::max(size(), rhs.size()) + 1;
+  data_.resize(new_size);
+  uint64_t carry = 0;
+  for (size_t i = 0; i < new_size; i++) {
+    uint64_t tmp = carry + data_[i] + rhs[i];
+    data_[i] = cast_to_uint32_t(tmp);
+    carry = tmp >> 32;
+  }
+  sgn_ = data_.back() & (1 << 31);
+  delete_leading_zeroes();
+  return *this;
 }
 
 big_integer& big_integer::operator-=(big_integer const& rhs) {
@@ -448,13 +458,14 @@ digits big_integer::div_uint32_t(uint32_t x) const {
 }
 
 big_integer big_integer::norm() {
-  if (!sgn_) return *this;
-  uint64_t carry = 1, tmp = 0;
-  data_.resize(size() + 1);
-  for (size_t i = 0; i < size(); i++) {
-    tmp = carry + (~operator[](i));
-    data_[i] = cast_to_uint32_t(tmp);
-    carry = tmp >> 32;
+  if (sgn_) {
+    uint64_t carry = 1, tmp = 0;
+    data_.resize(size() + 1);
+    for (size_t i = 0; i < size(); i++) {
+      tmp = carry + ~data_[i];
+      data_[i] = cast_to_uint32_t(tmp);
+      carry = tmp >> 32;
+    }
   }
   delete_leading_zeroes();
   return *this;
