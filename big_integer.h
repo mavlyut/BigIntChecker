@@ -8,7 +8,6 @@
 
 struct big_integer {
   big_integer();
-  big_integer(std::vector<uint32_t> data, bool sgn);
   big_integer(big_integer const& other);
   big_integer(int a);
   big_integer(unsigned a);
@@ -62,21 +61,20 @@ struct big_integer {
   friend big_integer operator<<(big_integer a, int b);
   friend big_integer operator>>(big_integer a, int b);
 
+private:
+  std::vector<uint32_t> data_;
+  bool sgn_;
+
+  big_integer(std::vector<uint32_t> data, bool sgn);
+  void push(uint32_t x);
   size_t size() const;
   bool eq_zero() const;
   big_integer abs() const;
   std::vector<uint32_t> div_uint32_t(uint32_t x) const;
   uint32_t operator[](size_t ind) const;
-  bool sgn() const;
-  big_integer norm();
-
-//private:
-  std::vector<uint32_t> data_;
-  bool sgn_;
-
-  void delete_leading_zeroes();
-
-  friend big_integer bit_operation(std::function<uint32_t(uint32_t, uint32_t)> const& f, big_integer const& a, big_integer const& b);
+  big_integer& norm();
+  big_integer& delete_leading_zeroes();
+  big_integer& bit_operation(std::function<uint32_t(uint32_t, uint32_t)> const& f, big_integer const& b);
 
   static const std::function<uint32_t(uint32_t, uint32_t)> bit_and;
   static const std::function<uint32_t(uint32_t, uint32_t)> bit_xor;
