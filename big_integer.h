@@ -65,14 +65,12 @@ struct big_integer {
   size_t size() const;
   bool eq_zero() const;
   big_integer abs() const;
-  void swap(big_integer& other);
-  std::vector<uint32_t> mul_uint32_t(uint32_t x) const;
   std::vector<uint32_t> div_uint32_t(uint32_t x) const;
   uint32_t operator[](size_t ind) const;
   bool sgn() const;
   big_integer norm();
 
-private:
+//private:
   std::vector<uint32_t> data_;
   bool sgn_;
 
@@ -84,8 +82,6 @@ private:
   static const std::function<uint32_t(uint32_t, uint32_t)> bit_xor;
   static const std::function<uint32_t(uint32_t, uint32_t)> bit_or;
 };
-
-std::vector<uint32_t> mul_uint32_t(std::vector<uint32_t> const&, uint32_t x);
 
 big_integer operator+(big_integer a, big_integer const& b);
 big_integer operator-(big_integer a, big_integer const& b);

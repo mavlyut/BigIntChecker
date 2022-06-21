@@ -9,22 +9,32 @@ static constexpr uint64_t POW32 = ONE_64 + UINT32_MAX;
 
 template<typename T>
 uint32_t cast_to_uint32_t(T x) {
-  return static_cast<uint32_t>(x & UINT32_MAX);
+  return static_cast<uint32_t>(x);
+}
+
+digits mul_uint32_t(digits const& d, uint32_t x) {
+  uint64_t carry = 0;
+  digits new_data(d.size() + 1);
+  for (size_t i = 0; i < d.size(); i++) {
+    uint64_t tmp = uint64_t(d[i]) * x + carry;
+    new_data[i] = cast_to_uint32_t(tmp);
+    carry = tmp >> 32;
+  }
+  new_data[d.size()] = cast_to_uint32_t(carry);
+  return new_data;
 }
 
 big_integer::big_integer() : data_(0), sgn_(false) {}
 
-big_integer::big_integer(big_integer const& other) : data_(other.data_), sgn_(other.sgn_) {
-  delete_leading_zeroes();
-}
+big_integer::big_integer(big_integer const& other) = default;
 
-big_integer::big_integer(int a) : big_integer((long) a) {}
+big_integer::big_integer(int a) : big_integer(static_cast<long>(a)) {}
 
-big_integer::big_integer(unsigned a) : big_integer((unsigned long) a) {}
+big_integer::big_integer(unsigned a) : big_integer(static_cast<unsigned long>(a)) {}
 
-big_integer::big_integer(long a) : big_integer((long long) a) {}
+big_integer::big_integer(long a) : big_integer(static_cast<long long>(a)) {}
 
-big_integer::big_integer(unsigned long a) : big_integer((unsigned long long) a) {}
+big_integer::big_integer(unsigned long a) : big_integer(static_cast<unsigned long long>(a)) {}
 
 big_integer::big_integer(long long a) : sgn_(a < 0) {
   data_.push_back(cast_to_uint32_t(a));
@@ -42,25 +52,35 @@ big_integer::big_integer(unsigned long long a) : sgn_(false) {
 
 big_integer::big_integer(std::string const& str) : big_integer() {
   bool tmp_sgn = str[0] == '-';
-  if (str.substr(tmp_sgn).empty()) throw std::invalid_argument("Can't parse empty string to big_integer");
+  if (str.substr(tmp_sgn).empty()) {
+    throw std::invalid_argument("Can't parse empty string to big_integer");
+  }
   uint32_t tmp = 0, pow = 1;
   uint32_t MAX_TMP = (UINT32_MAX - 9) / 10, MAX_POW = UINT32_MAX / 10;
   for (size_t i = tmp_sgn; i < str.length(); i++) {
-    if (!(str[i] >= '0' && str[i] <= '9')) throw std::invalid_argument("Error while parsing number");
+    if (!(str[i] >= '0' && str[i] <= '9')) {
+      throw std::invalid_argument("Error while parsing number");
+    }
     tmp = tmp * 10 + (str[i] - '0');
     pow *= 10;
     if (tmp > MAX_TMP || pow > MAX_POW) {
       *this *= pow;
-      if (tmp_sgn) *this -= tmp;
-      else *this += tmp;
+      if (tmp_sgn) {
+        *this -= tmp;
+      } else {
+        *this += tmp;
+      }
       tmp = 0;
       pow = 1;
     }
   }
   if (tmp != 0 || pow > 1) {
     *this *= pow;
-    if (tmp_sgn) *this -= tmp;
-    else *this += tmp;
+    if (tmp_sgn) {
+      *this -= tmp;
+    } else {
+      *this += tmp;
+    }
   }
 }
 
@@ -119,7 +139,9 @@ big_integer big_integer::operator-() const {
 
 big_integer big_integer::operator~() const {
   digits new_data(size());
-  for (size_t i = 0; i < size(); i++) new_data[i] = ~data_[i];
+  for (size_t i = 0; i < size(); i++) {
+    new_data[i] = ~data_[i];
+  }
   return big_integer(new_data, !sgn_);
 }
 
@@ -174,9 +196,11 @@ big_integer operator*(big_integer a, big_integer const& b) {
   big_integer c = a.abs();
   big_integer d = b.abs();
   digits new_data;
-  if (d.size() == 1) new_data = c.mul_uint32_t(d[0]);
-  else if (c.size() == 1) new_data = d.mul_uint32_t(c[0]);
-  else {
+  if (d.size() == 1) {
+    new_data = mul_uint32_t(c.data_, d[0]);
+  } else if (c.size() == 1) {
+    new_data = mul_uint32_t(d.data_, c[0]);
+  } else {
     new_data.resize(c.size() + d.size() + 1, 0);
     for (size_t i = 0; i < c.size(); i++) {
       uint64_t carry = 0;
@@ -211,20 +235,29 @@ uint32_t trial(uint32_t const a, uint32_t const b, uint32_t const div) {
 
 bool smaller(digits const& a, digits const& b, size_t x) {
   for (size_t i = b.size() - 1; ; i--) {
-    if (a[i + x] != b[i]) return a[i + x] < b[i];
-    if (i == 0) break;
+    if (a[i + x] != b[i]) {
+      return a[i + x] < b[i];
+    }
+    if (i == 0) {
+      break;
+    }
   }
   return false;
 }
 
 big_integer operator/(big_integer a, big_integer const& b) {
-  if (b.eq_zero()) throw std::invalid_argument("Error while evaluating a / b: division by zero");
+  if (b.eq_zero()) {
+    throw std::invalid_argument("Error while evaluating a / b: division by zero");
+  }
   big_integer c = a.abs();
   big_integer d = b.abs();
-  if (c < d) return 0;
+  if (c < d) {
+    return 0;
+  }
   digits new_data;
-  if (d.size() == 1) new_data = c.div_uint32_t(d[0]);
-  else {
+  if (d.size() == 1) {
+    new_data = c.div_uint32_t(d[0]);
+  } else {
     digits x = c.data_, y = d.data_, dq;
     uint32_t f = cast_to_uint32_t(POW32 / (ONE_64 + y.back()));
     size_t ys = y.size();
@@ -243,7 +276,9 @@ big_integer operator/(big_integer a, big_integer const& b) {
       }
       new_data[k] = qt;
       difference(q, dq, k);
-      if (k == 0) break;
+      if (k == 0) {
+        break;
+      }
     }
   }
   return big_integer(new_data, a.sgn() ^ b.sgn()).norm();
@@ -266,7 +301,9 @@ big_integer operator^(big_integer a, big_integer const& b) {
 }
 
 big_integer operator<<(big_integer a, int b) {
-  if (b < 0) return a >> (-b);
+  if (b < 0) {
+    return a >> (-b);
+  }
   digits new_data(b / 32, 0);
   size_t mod = b % 32;
   for (size_t i = 0; i <= a.size(); i++) {
@@ -278,7 +315,9 @@ big_integer operator<<(big_integer a, int b) {
 }
 
 big_integer operator>>(big_integer a, int b) {
-  if (b < 0) return a << (-b);
+  if (b < 0) {
+    return a << (-b);
+  }
   digits new_data;
   size_t mod = b % 32;
   for (size_t i = b / 32; i < a.size(); i++) {
@@ -296,11 +335,19 @@ bool operator!=(big_integer const& a, big_integer const& b) {
 }
 
 bool operator<(big_integer const& a, big_integer const& b) {
-  if (a.sgn_ != b.sgn_) return a.sgn_;
-  if (a.size() != b.size()) return a.size() < b.size();
+  if (a.sgn_ != b.sgn_) {
+    return a.sgn_;
+  }
+  if (a.size() != b.size()) {
+    return a.size() < b.size();
+  }
   for (size_t i = a.size() - 1; ; i--) {
-    if (a[i] != b[i]) return a[i] < b[i];
-    if (i == 0) break;
+    if (a[i] != b[i]) {
+      return a[i] < b[i];
+    }
+    if (i == 0) {
+      break;
+    }
   }
   return false;
 }
@@ -318,7 +365,9 @@ bool operator>=(big_integer const& a, big_integer const& b) {
 }
 
 std::string to_string(big_integer const& a) {
-  if (a.data_.empty()) return a.sgn_ ? "-1" : "0";
+  if (a.data_.empty()) {
+    return a.sgn_ ? "-1" : "0";
+  }
   std::string ans;
   big_integer b = a.abs();
   while (!b.eq_zero()) {
@@ -329,8 +378,12 @@ std::string to_string(big_integer const& a) {
     }
     b /= 1000000000;
   }
-  while (ans.length() > 0 && ans[ans.length() - 1] == '0') ans.pop_back();
-  if (a.sgn_) ans.push_back('-');
+  while (ans.length() > 0 && ans[ans.length() - 1] == '0') {
+    ans.pop_back();
+  }
+  if (a.sgn_) {
+    ans.push_back('-');
+  }
   std::reverse(ans.begin(), ans.end());
   return ans;
 }
@@ -355,11 +408,6 @@ const std::function<uint32_t(uint32_t, uint32_t)> big_integer::bit_xor = [](uint
 
 big_integer::big_integer(digits data, bool sgn) : data_(data), sgn_(sgn) {
   delete_leading_zeroes();
-}
-
-void big_integer::swap(big_integer &other) {
-  std::swap(data_, other.data_);
-  std::swap(sgn_, other.sgn_);
 }
 
 bool big_integer::eq_zero() const {
@@ -387,22 +435,6 @@ void big_integer::delete_leading_zeroes() {
   }
 }
 
-digits big_integer::mul_uint32_t(uint32_t x) const {
-  return ::mul_uint32_t(data_, x);
-}
-
-digits mul_uint32_t(digits const& d, uint32_t x) {
-  uint64_t carry = 0;
-  digits new_data(d.size() + 1);
-  for (size_t i = 0; i < d.size(); i++) {
-    uint64_t tmp = uint64_t(d[i]) * x + carry;
-    new_data[i] = cast_to_uint32_t(tmp);
-    carry = tmp >> 32;
-  }
-  new_data[d.size()] = cast_to_uint32_t(carry);
-  return new_data;
-}
-
 digits big_integer::div_uint32_t(uint32_t x) const {
   uint64_t carry = 0;
   digits new_data(size());
@@ -424,6 +456,7 @@ big_integer big_integer::norm() {
     data_[i] = cast_to_uint32_t(tmp);
     carry = tmp >> 32;
   }
+  delete_leading_zeroes();
   return *this;
 }
 
