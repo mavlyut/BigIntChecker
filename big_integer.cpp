@@ -198,11 +198,12 @@ big_integer big_integer::operator-() const {
 }
 
 big_integer big_integer::operator~() const {
-  digits new_data(size());
-  for (size_t i = 0; i < size(); i++) {
-    new_data[i] = ~data_[i];
+  big_integer ans(*this);
+  ans.sgn_ ^= true;
+  for (uint32_t& i : ans.data_) {
+    i = ~i;
   }
-  return big_integer(new_data, !sgn_);
+  return ans.delete_leading_zeroes();
 }
 
 big_integer& big_integer::operator++() {
