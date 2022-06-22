@@ -87,29 +87,27 @@ big_integer& big_integer::operator=(big_integer const& other) = default;
 
 big_integer& big_integer::operator+=(big_integer const& rhs) {
   size_t new_size = std::max(size(), rhs.size()) + 1;
-  digits new_data(new_size);
+  expand(new_size, get_zero());
   uint64_t carry = 0;
   for (size_t i = 0; i < new_size; i++) {
-    uint64_t tmp = carry + operator[](i) + rhs[i];
-    new_data[i] = cast_to_uint32_t(tmp);
+    uint64_t tmp = carry + data_[i] + rhs[i];
+    data_[i] = cast_to_uint32_t(tmp);
     carry = tmp >> 32;
   }
-  data_ = new_data;
-  sgn_ = new_data.back() & (1 << 31);
+  sgn_ = data_.back() & (1 << 31);
   return delete_leading_zeroes();
 }
 
 big_integer& big_integer::operator-=(big_integer const& rhs) {
   size_t new_size = std::max(size(), rhs.size()) + 1;
-  digits new_data(new_size);
+  expand(new_size, get_zero());
   uint64_t carry = 1;
   for (size_t i = 0; i < new_size; i++) {
-    uint64_t tmp = carry + operator[](i) + ~rhs[i];
-    new_data[i] = cast_to_uint32_t(tmp);
+    uint64_t tmp = carry + data_[i] + ~rhs[i];
+    data_[i] = cast_to_uint32_t(tmp);
     carry = tmp >> 32;
   }
-  data_ = new_data;
-  sgn_ = new_data.back() & (1 << 31);
+  sgn_ = data_.back() & (1 << 31);
   return delete_leading_zeroes();
 }
 
@@ -117,25 +115,24 @@ big_integer& big_integer::operator*=(big_integer const& rhs) {
   if (eq_zero() || rhs.eq_zero()) return *this;
   big_integer c = abs();
   big_integer d = rhs.abs();
-  digits new_data;
   if (d.size() == 1) {
-    new_data = mul_uint32_t(c.data_, d[0]);
+    data_ = mul_uint32_t(c.data_, d[0]);
   } else if (c.size() == 1) {
-    new_data = mul_uint32_t(d.data_, c[0]);
+    data_ = mul_uint32_t(d.data_, c[0]);
   } else {
-    new_data.resize(c.size() + d.size() + 1, 0);
+    data_.clear();
+    expand(c.size() + d.size() + 1, 0);
     for (size_t i = 0; i < c.size(); i++) {
       uint64_t carry = 0;
       for (size_t j = 0; j < d.size(); j++) {
         uint64_t mul = (uint64_t) c[i] * d[j];
-        uint64_t tmp = carry + new_data[i + j] + cast_to_uint32_t(mul);
-        new_data[i + j] = cast_to_uint32_t(tmp);
+        uint64_t tmp = carry + data_[i + j] + cast_to_uint32_t(mul);
+        data_[i + j] = cast_to_uint32_t(tmp);
         carry = (tmp >> 32) + (mul >> 32);
       }
-      new_data[i + d.size()] += cast_to_uint32_t(carry);
+      data_[i + d.size()] += cast_to_uint32_t(carry);
     }
   }
-  data_ = new_data;
   sgn_ ^= rhs.sgn_;
   return norm();
 }
@@ -176,9 +173,8 @@ big_integer& big_integer::operator/=(big_integer const& rhs) {
     sgn_ = false;
     return *this;
   }
-  digits new_data;
   if (d.size() == 1) {
-    new_data = c.div_uint32_t(d[0]);
+    data_ = c.div_uint32_t(d[0]);
   } else {
     digits x = c.data_, y = d.data_, dq;
     uint32_t f = cast_to_uint32_t(POW32 / (ONE_64 + y.back()));
@@ -187,23 +183,22 @@ big_integer& big_integer::operator/=(big_integer const& rhs) {
     while (!q.empty() && q.back() == 0) q.pop_back();
     while (!r.empty() && r.back() == 0) r.pop_back();
     uint32_t div = r.back();
-    new_data.resize(x.size() - ys + 1);
+    expand(x.size() - ys + 1, 0);
     q.push_back(0);
-    for (size_t k = new_data.size() - 1; ; k--) {
+    for (size_t k = data_.size() - 1; ; k--) {
       uint32_t qt = trial(q[k + ys], q[k + ys - 1], div);
       dq = mul_uint32_t(r, qt);
       while (smaller(q, dq, k)) {
         qt--;
         dq = mul_uint32_t(r, qt);
       }
-      new_data[k] = qt;
+      data_[k] = qt;
       difference(q, dq, k);
       if (k == 0) {
         break;
       }
     }
   }
-  data_ = new_data;
   sgn_ ^= rhs.sgn_;
   return norm();
 }
@@ -409,10 +404,6 @@ const std::function<uint32_t(uint32_t, uint32_t)> big_integer::bit_and = [](uint
 const std::function<uint32_t(uint32_t, uint32_t)> big_integer::bit_or  = [](uint32_t a, uint32_t b) { return a | b; };
 const std::function<uint32_t(uint32_t, uint32_t)> big_integer::bit_xor = [](uint32_t a, uint32_t b) { return a ^ b; };
 
-big_integer::big_integer(digits data, bool sgn) : data_(data), sgn_(sgn) {
-  delete_leading_zeroes();
-}
-
 bool big_integer::eq_zero() const {
   return data_.empty() && !sgn_;
 }
@@ -471,5 +462,18 @@ big_integer& big_integer::norm() {
 void big_integer::push(uint32_t x) {
   if (sgn_ && x == UINT32_MAX || !sgn_ && x == 0) return;
   data_.push_back(x);
+}
+
+uint32_t big_integer::get_zero() const {
+  return sgn_ ? UINT32_MAX : 0;
+}
+
+void big_integer::expand(size_t x, uint32_t y) {
+  while (data_.size() > x) {
+    data_.pop_back();
+  }
+  while (data_.size() < x) {
+    data_.push_back(y);
+  }
 }
 

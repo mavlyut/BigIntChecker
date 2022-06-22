@@ -56,11 +56,12 @@ private:
   std::vector<uint32_t> data_;
   bool sgn_;
 
-  big_integer(std::vector<uint32_t> data, bool sgn);
   void push(uint32_t x);
   size_t size() const;
   bool eq_zero() const;
   big_integer abs() const;
+  void expand(size_t x, uint32_t y);
+  uint32_t get_zero() const;
   std::vector<uint32_t> div_uint32_t(uint32_t x) const;
   uint32_t operator[](size_t ind) const;
   big_integer& norm();
