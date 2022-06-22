@@ -52,15 +52,6 @@ struct big_integer {
 
   friend std::string to_string(big_integer const& a);
 
-  friend big_integer operator+(big_integer a, big_integer const& b);
-  friend big_integer operator/(big_integer a, big_integer const& b);
-  friend big_integer operator&(big_integer a, big_integer const& b);
-  friend big_integer operator|(big_integer a, big_integer const& b);
-  friend big_integer operator^(big_integer a, big_integer const& b);
-
-  friend big_integer operator<<(big_integer a, int b);
-  friend big_integer operator>>(big_integer a, int b);
-
 private:
   std::vector<uint32_t> data_;
   bool sgn_;

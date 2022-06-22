@@ -140,9 +140,74 @@ big_integer& big_integer::operator*=(big_integer const& rhs) {
   return norm();
 }
 
-big_integer& big_integer::operator/=(big_integer const& rhs) {
-  return *this = *this / rhs;
+void difference(digits& a, digits const& b, size_t x) {
+  uint64_t carry = 1;
+  for (size_t i = 0; i < b.size(); i++) {
+    uint64_t tmp = carry + a[i + x] + ~b[i];
+    a[i + x] = cast_to_uint32_t(tmp);
+    carry = tmp >> 32;
+  }
 }
+
+uint32_t trial(uint32_t const a, uint32_t const b, uint32_t const div) {
+  return cast_to_uint32_t(std::min(POW32, ((uint64_t(a) << 32) + b) / div));
+}
+
+bool smaller(digits const& a, digits const& b, size_t x) {
+  for (size_t i = b.size() - 1; ; i--) {
+    if (a[i + x] != b[i]) {
+      return a[i + x] < b[i];
+    }
+    if (i == 0) {
+      break;
+    }
+  }
+  return false;
+}
+
+big_integer& big_integer::operator/=(big_integer const& rhs) {
+  if (rhs.eq_zero()) {
+    throw std::invalid_argument("Error while evaluating a / b: division by zero");
+  }
+  big_integer c = abs();
+  big_integer d = rhs.abs();
+  if (c < d) {
+    data_.clear();
+    sgn_ = false;
+    return *this;
+  }
+  digits new_data;
+  if (d.size() == 1) {
+    new_data = c.div_uint32_t(d[0]);
+  } else {
+    digits x = c.data_, y = d.data_, dq;
+    uint32_t f = cast_to_uint32_t(POW32 / (ONE_64 + y.back()));
+    size_t ys = y.size();
+    digits q = mul_uint32_t(x, f), r = mul_uint32_t(y, f);
+    while (!q.empty() && q.back() == 0) q.pop_back();
+    while (!r.empty() && r.back() == 0) r.pop_back();
+    uint32_t div = r.back();
+    new_data.resize(x.size() - ys + 1);
+    q.push_back(0);
+    for (size_t k = new_data.size() - 1; ; k--) {
+      uint32_t qt = trial(q[k + ys], q[k + ys - 1], div);
+      dq = mul_uint32_t(r, qt);
+      while (smaller(q, dq, k)) {
+        qt--;
+        dq = mul_uint32_t(r, qt);
+      }
+      new_data[k] = qt;
+      difference(q, dq, k);
+      if (k == 0) {
+        break;
+      }
+    }
+  }
+  data_ = new_data;
+  sgn_ ^= rhs.sgn_;
+  return norm();
+}
+
 
 big_integer& big_integer::operator%=(big_integer const& rhs) {
   return *this -= *this / rhs * rhs;
@@ -240,72 +305,8 @@ big_integer operator*(big_integer a, big_integer const& b) {
   return a *= b;
 }
 
-void delete_leading_zeroes(digits& x) {
-  while (!x.empty() && x.back() == 0) x.pop_back();
-}
-
-void difference(digits& a, digits const& b, size_t x) {
-  uint64_t carry = 1;
-  for (size_t i = 0; i < b.size(); i++) {
-    uint64_t tmp = carry + a[i + x] + ~b[i];
-    a[i + x] = cast_to_uint32_t(tmp);
-    carry = tmp >> 32;
-  }
-}
-
-uint32_t trial(uint32_t const a, uint32_t const b, uint32_t const div) {
-  return cast_to_uint32_t(std::min(POW32, ((uint64_t(a) << 32) + b) / div));
-}
-
-bool smaller(digits const& a, digits const& b, size_t x) {
-  for (size_t i = b.size() - 1; ; i--) {
-    if (a[i + x] != b[i]) {
-      return a[i + x] < b[i];
-    }
-    if (i == 0) {
-      break;
-    }
-  }
-  return false;
-}
-
 big_integer operator/(big_integer a, big_integer const& b) {
-  if (b.eq_zero()) {
-    throw std::invalid_argument("Error while evaluating a / b: division by zero");
-  }
-  big_integer c = a.abs();
-  big_integer d = b.abs();
-  if (c < d) {
-    return 0;
-  }
-  digits new_data;
-  if (d.size() == 1) {
-    new_data = c.div_uint32_t(d[0]);
-  } else {
-    digits x = c.data_, y = d.data_, dq;
-    uint32_t f = cast_to_uint32_t(POW32 / (ONE_64 + y.back()));
-    size_t ys = y.size();
-    digits q = mul_uint32_t(x, f), r = mul_uint32_t(y, f);
-    delete_leading_zeroes(q);
-    delete_leading_zeroes(r);
-    uint32_t div = r.back();
-    new_data.resize(x.size() - ys + 1);
-    q.push_back(0);
-    for (size_t k = new_data.size() - 1; ; k--) {
-      uint32_t qt = trial(q[k + ys], q[k + ys - 1], div);
-      dq = mul_uint32_t(r, qt);
-      while (smaller(q, dq, k)) {
-        qt--;
-        dq = mul_uint32_t(r, qt);
-      }
-      new_data[k] = qt;
-      difference(q, dq, k);
-      if (k == 0) {
-        break;
-      }
-    }
-  }
-  return big_integer(new_data, a.sgn_ ^ b.sgn_).norm();
+  return a /= b;
 }
 
 big_integer operator%(big_integer a, big_integer const& b) {
